@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <!-- Database connection settings -->
+        <!--<property name="connection.driver_class">oracle.jdbc.driver.OracleDriver</property>
+        <property name="connection.url">jdbc:oracle:thin:@130.101.2.184:1521:T5WEBCS</property>
+        &lt;!&ndash; 用户名 下面是密码 &ndash;&gt;
+        <property name="connection.username">scott</property>
+        <property name="connection.password">tiger</property>
+        -->
+        <!-- Database connection settings -->
+        <property name="connection.driver_class">org.h2.Driver</property>
+        <property name="connection.url"> jdbc:h2:tcp://localhost/f://h2/calendar</property>
+        <!-- 用户名 下面是密码 -->
+        <property name="connection.username">sa</property>
+        <property name="connection.password">sa</property>
+
+        <!-- SQL dialect -->
+        <!--<property name="dialect">org.hibernate.dialect.Oracle10gDialect</property>-->
+        <property name="dialect">org.hibernate.dialect.H2Dialect</property>
+
+        <!-- 执行操作时是否在控制台打印 SQL -->
+        <property name="show_sql">true</property>
+
+        <!-- 是否对 SQL 进行格式化 -->
+        <property name="format_sql">true</property>
+
+        <!-- 指定自动生成数据表的策略 -->
+        <property name="hbm2ddl.auto">update</property>
+
+        <mapping class="com.calendar.model.WorkCalendar"/>
+        <mapping class="com.calendar.model.WorkingDay"/>
+        <mapping class="com.calendar.model.WorkShift"/>
+    </session-factory>
+</hibernate-configuration>
