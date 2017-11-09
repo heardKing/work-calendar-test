@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -55,14 +56,14 @@ public class WorkCalendarRepositoryImplTest {
         workCalendar.setCalendarCode("000-189");
         workCalendar.setCalendarName("工作日历测试名称");
         workCalendar.setCalendarTemplate(null);
-//        workCalendar.setStartDate(DateUtils.getDate("2017-01-01"));
-//        workCalendar.setEndDate(DateUtils.getDate("2017-12-31"));
+        workCalendar.setStartDate(DateUtils.getDate("2017-01-01"));
+        workCalendar.setEndDate(DateUtils.getDate("2017-12-31"));
 /*-------------------保存班次-------------------------*/
         WorkShift workShift = new WorkShift();
         workShift.setWorkShiftID(1l);
         workShift.setShiftCode("shift-0001");
         workShift.setShiftName("测试用班次");
-//        this.session.save(workShift);
+        this.session.save(workShift);
         System.out.println(workShift);
         workCalendar.setWorkShift(workShift);
 /*----------------------------------------------------*/
@@ -77,10 +78,10 @@ public class WorkCalendarRepositoryImplTest {
         workShift2.setWorkShiftID(2l);
         workShift2.setShiftCode("shift-0002");
         workShift2.setShiftName("测试用班次(自定义工作日)");
-//        this.session.save(workShift2);
+        this.session.save(workShift2);
         for (int i = 0; i < 3; i++) {
             WorkingDay workingDay = new WorkingDay();
-//            workingDay.setWorkingDate(DateUtils.getDate("2017-12-"+(i+2)));
+            workingDay.setWorkingDate(DateUtils.getDate("2017-12-"+(i+2)));
             workingDay.setWorkShift(workShift2);
             workingDays.add(workingDay);
         }
@@ -99,8 +100,15 @@ public class WorkCalendarRepositoryImplTest {
 
     @Test
     public void getByID() throws Exception {
+        /*
+        * 前端返回数据后端分页返回给前端，按照每一个月一次返回给前端
+        * WorkingDay这个类可以自己修改，
+        *
+        * */
         WorkCalendar workCalendar = (WorkCalendar)this.session.get(WorkCalendar.class, 1l);
-//        System.out.println(workCalendar);
+        Date startDate = workCalendar.getStartDate();
+        Calendar startCalendar = Calendar.getInstance();
+        startCalendar.setTime(startDate);
     }
 
     @Test
