@@ -1,10 +1,14 @@
 package com.calendar.repository.impl;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.calendar.model.WorkCalendar;
 import com.calendar.model.WorkShift;
 import com.calendar.model.WorkingDay;
 import com.calendar.repository.WorkCalendarRepository;
 import com.calendar.utils.DateUtils;
+import com.calendar.utils.FormDataUtils;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -18,10 +22,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -51,43 +52,46 @@ public class WorkCalendarRepositoryImplTest {
     }
 
     @Test
-    public void save() throws Exception {
-        WorkCalendar workCalendar = new WorkCalendar();
-        workCalendar.setCalendarCode("000-189");
-        workCalendar.setCalendarName("工作日历测试名称");
-        workCalendar.setCalendarTemplate(null);
-        workCalendar.setStartDate(DateUtils.getDate("2017-01-01"));
-        workCalendar.setEndDate(DateUtils.getDate("2017-12-31"));
-/*-------------------保存班次-------------------------*/
+    public void initDataBaseWorkShift(){
+        for (int i = 0;i<5;i++) {
+            WorkShift workShiftForCalendar = FormDataUtils.getWorkShift();
+            this.session.save(workShiftForCalendar);
+        }
+    }
+
+    @Test
+    public void initDateBaseWorkCalendar(){
         WorkShift workShift = new WorkShift();
         workShift.setWorkShiftID(1l);
-        workShift.setShiftCode("shift-0001");
-        workShift.setShiftName("测试用班次");
-        this.session.save(workShift);
-        System.out.println(workShift);
-        workCalendar.setWorkShift(workShift);
-/*----------------------------------------------------*/
-        workCalendar.setRestDayRule("1,3,5");
-        workCalendar.setIsAdministration("1");
-        workCalendar.setIsProduction("0");
-        workCalendar.setIsEquipment("0");
-        workCalendar.setIsTemplate("1");
+        WorkCalendar workCalendar = FormDataUtils.getNormalWorkCalendar(null,workShift);
+        this.session.save(workCalendar);
+    }
 
-        List<WorkingDay> workingDays = new ArrayList<WorkingDay>();
-        WorkShift workShift2 = new WorkShift();
-        workShift2.setWorkShiftID(2l);
-        workShift2.setShiftCode("shift-0002");
-        workShift2.setShiftName("测试用班次(自定义工作日)");
-        this.session.save(workShift2);
-        for (int i = 0; i < 3; i++) {
-            WorkingDay workingDay = new WorkingDay();
-            workingDay.setWorkingDate(DateUtils.getDate("2017-12-"+(i+2)));
-            workingDay.setWorkShift(workShift2);
-            workingDays.add(workingDay);
+    @Test
+    public void initDateBaseWorkingDay(){
+        WorkCalendar workCalendar = new WorkCalendar();
+        workCalendar.setCalendarID(6l);
+        WorkShift workShift = new WorkShift();
+        workShift.setWorkShiftID(4l);
+        for (int i = 0; i < 4; i++) {
+            WorkingDay workingDay = FormDataUtils.getWorkingDay(2017,2,15+i,workShift,workCalendar);
+            this.session.save(workingDay);
         }
-        workCalendar.setWorkingDays(workingDays);
-        Serializable save = this.session.save(workCalendar);
-        System.out.println(save);
+    }
+
+    @Test
+    public void save() throws Exception {
+        /*实际程序运行中首先保存工作日历然后再编辑特殊的工作日*/
+        WorkShift workShiftForCalendar = FormDataUtils.getWorkShift();
+        this.session.save(workShiftForCalendar);
+        WorkCalendar workCalendar = FormDataUtils.getNormalWorkCalendar(null,workShiftForCalendar);
+        this.session.save(workCalendar);
+
+        WorkShift workShiftForDay = FormDataUtils.getWorkShift();
+        this.session.save(workShiftForDay);
+        WorkingDay workingDay = FormDataUtils.getWorkingDay(2017,2,15,workShiftForDay,workCalendar);
+        this.session.save(workingDay);
+
     }
 
     @Test
@@ -103,12 +107,48 @@ public class WorkCalendarRepositoryImplTest {
         /*
         * 前端返回数据后端分页返回给前端，按照每一个月一次返回给前端
         * WorkingDay这个类可以自己修改，
-        *
+        *currentTime = "2017-03-01"
         * */
-        WorkCalendar workCalendar = (WorkCalendar)this.session.get(WorkCalendar.class, 1l);
-        Date startDate = workCalendar.getStartDate();
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.setTime(startDate);
+        String queryData = "2017-03-01";
+        WorkCalendar workCalendar = (WorkCalendar)this.session.get(WorkCalendar.class, 6l);
+        List<WorkingDay> workingDays = workCalendar.getWorkingDays();
+        WorkShift workShift = workCalendar.getWorkShift();
+        Calendar calendar = Calendar.getInstance();
+        String[] timeArray = queryData.split("-");
+        calendar.set(Integer.parseInt(timeArray[0]),Integer.parseInt(timeArray[1])-1,Integer.parseInt(timeArray[2]),0,0,0);
+        calendar.set(Calendar.MILLISECOND,0);
+        int mouth = calendar.get(Calendar.MONTH);
+        int maxDay = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+        Map<Date,WorkingDay> workingDayMap = new TreeMap<Date, WorkingDay>();//TreeMap<Date, WorkingDay>();
+        for (int i = 0; i< maxDay; i++){
+            Date date = calendar.getTime();
+            WorkingDay workingDay = new WorkingDay();
+            workingDay.setWorkingDate(date);
+            if(DateUtils.checkHoliday(calendar)){
+                workingDay.setDateType("休息日");
+            }else {
+                workingDay.setDateType("工作日");
+                workingDay.setWorkShift(workShift);
+            }
+            workingDayMap.put(date,workingDay);
+            calendar.add(Calendar.DATE,1);
+        }
+        for(WorkingDay workingDay:workingDays){
+            calendar.setTime(workingDay.getWorkingDate());
+            int workingDAyMouth = calendar.get(Calendar.MONTH);
+            if(mouth == workingDAyMouth) {
+                workingDayMap.put(workingDay.getWorkingDate(), workingDay);
+            }
+        }
+        JSON.DEFFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
+        String jsonString = JSON.toJSONString(workingDayMap, SerializerFeature.WriteDateUseDateFormat);
+        for (Map.Entry<Date,WorkingDay> entry : workingDayMap.entrySet()){
+            Date key = entry.getKey();
+            System.out.print(key);
+            WorkingDay value = entry.getValue();
+            System.out.println("-----" + value);
+        }
+        System.out.println(jsonString);
     }
 
     @Test

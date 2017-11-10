@@ -45,7 +45,7 @@ public class WorkCalendar {
 
     private String isTemplate;//是否是模板   0：否；1：是；
 
-    @OneToMany(cascade = CascadeType.ALL,fetch = FetchType.EAGER)
+    @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "workCalendarID")
     @Fetch(FetchMode.SUBSELECT)
     private List<WorkingDay> workingDays = new ArrayList<WorkingDay>();//
