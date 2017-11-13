@@ -1,30 +1,25 @@
 package com.calendar.repository.impl;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.calendar.model.WorkCalendar;
 import com.calendar.model.WorkShift;
 import com.calendar.model.WorkingDay;
-import com.calendar.repository.WorkCalendarRepository;
 import com.calendar.utils.DateUtils;
 import com.calendar.utils.FormDataUtils;
+import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
-import org.hibernate.criterion.Criterion;
-import org.hibernate.criterion.Restrictions;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.ServiceRegistryBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.Serializable;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
-
-import static org.junit.Assert.*;
 
 public class WorkCalendarRepositoryImplTest {
 
@@ -113,42 +108,47 @@ public class WorkCalendarRepositoryImplTest {
         WorkCalendar workCalendar = (WorkCalendar)this.session.get(WorkCalendar.class, 6l);
         List<WorkingDay> workingDays = workCalendar.getWorkingDays();
         WorkShift workShift = workCalendar.getWorkShift();
+
         Calendar calendar = Calendar.getInstance();
         String[] timeArray = queryData.split("-");
         calendar.set(Integer.parseInt(timeArray[0]),Integer.parseInt(timeArray[1])-1,Integer.parseInt(timeArray[2]),0,0,0);
         calendar.set(Calendar.MILLISECOND,0);
-        int mouth = calendar.get(Calendar.MONTH);
+        int mouth = Integer.parseInt(timeArray[1])-1;
         int maxDay = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-        Map<Date,WorkingDay> workingDayMap = new TreeMap<Date, WorkingDay>();//TreeMap<Date, WorkingDay>();
-        for (int i = 0; i< maxDay; i++){
-            Date date = calendar.getTime();
-            WorkingDay workingDay = new WorkingDay();
-            workingDay.setWorkingDate(date);
-            if(DateUtils.checkHoliday(calendar)){
-                workingDay.setDateType("休息日");
-            }else {
-                workingDay.setDateType("工作日");
-                workingDay.setWorkShift(workShift);
-            }
-            workingDayMap.put(date,workingDay);
-            calendar.add(Calendar.DATE,1);
-        }
+//        Map<Date,WorkingDay> workingDayMap = new TreeMap<Date, WorkingDay>();//TreeMap<Date, WorkingDay>();
+        Set<WorkingDay> workingDaySet = new TreeSet<WorkingDay>();
         for(WorkingDay workingDay:workingDays){
             calendar.setTime(workingDay.getWorkingDate());
             int workingDAyMouth = calendar.get(Calendar.MONTH);
             if(mouth == workingDAyMouth) {
-                workingDayMap.put(workingDay.getWorkingDate(), workingDay);
+                workingDaySet.add(workingDay);
             }
         }
-        JSON.DEFFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-        String jsonString = JSON.toJSONString(workingDayMap, SerializerFeature.WriteDateUseDateFormat);
-        for (Map.Entry<Date,WorkingDay> entry : workingDayMap.entrySet()){
-            Date key = entry.getKey();
-            System.out.print(key);
-            WorkingDay value = entry.getValue();
-            System.out.println("-----" + value);
+        calendar.set(Integer.parseInt(timeArray[0]),Integer.parseInt(timeArray[1])-1,Integer.parseInt(timeArray[2]),0,0,0);
+        calendar.set(Calendar.MILLISECOND,0);
+        for (int i = 0; i< maxDay; i++){
+            Date date = calendar.getTime();
+            if(!DateUtils.checkHoliday(calendar)){
+                WorkingDay workingDay = new WorkingDay();
+                workingDay.setWorkingDate(date);
+                workingDay.setDateType("工作日");
+                workingDay.setWorkShift(workShift);
+                workingDaySet.add(workingDay);
+            }
+            calendar.add(Calendar.DATE,1);
+        }
+       /* JSON.DEFFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
+        String jsonString = JSON.toJSONString(workingDayMap, SerializerFeature.WriteDateUseDateFormat);*/
+        ObjectMapper mapper = new ObjectMapper();
+        //设置JSON时间格式
+        SimpleDateFormat myDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        mapper.setDateFormat(myDateFormat);
+        String jsonString = mapper.writeValueAsString(workingDaySet);
+        for (WorkingDay workingDay : workingDaySet){
+            System.out.println(workingDay);
         }
         System.out.println(jsonString);
+        System.out.println(workingDaySet.size());
     }
 
     @Test
